@@ -20,6 +20,10 @@ type Server struct {
 	m *martini.Martini
 }
 
+var (
+	AuthToken string
+)
+
 func NewServer() *Server {
 	s := &Server{}
 	r := martini.NewRouter()
@@ -45,6 +49,21 @@ func (s *Server) ConfigureLDAP(options *LdapOptions) error {
 	return nil
 }
 
+func (s *Server) ValidateHeader(req *http.Request) error {
+	AccessToken := ""
+	auth := req.Header.Get("Authorization")
+	al := strings.Split(auth, " ")
+	if len(al) > 1 {
+		AccessToken = al[1]
+	} else {
+		AccessToken = auth
+	}
+	if AccessToken != AuthToken {
+		return fmt.Errorf("认证失败，token不合法")
+	}
+	return nil
+}
+
 func (s *Server) Serve(l net.Listener) error {
 	return http.Serve(l, s.m)
 }
@@ -56,6 +75,9 @@ func (s *Server) Ping() []byte {
 }
 
 func (s *Server) ExecCommand(req *http.Request) (int, interface{}) {
+	if err := s.ValidateHeader(req); err != nil {
+		return http.StatusUnauthorized, "认证失败，token不合法\n"
+	}
 	command := req.FormValue("command")
 	if command == "" {
 		return http.StatusInternalServerError, "command is a required parameter\n"
@@ -153,6 +175,9 @@ func (s *Server) ExecCommand(req *http.Request) (int, interface{}) {
 }
 
 func (s *Server) PutFile(req *http.Request) (int, string) {
+	if err := s.ValidateHeader(req); err != nil {
+		return http.StatusUnauthorized, "认证失败，token不合法\n"
+	}
 	dest := req.FormValue("dest")
 	src, _, err := req.FormFile("src")
 	if err != nil {

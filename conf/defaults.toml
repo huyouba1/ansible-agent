@@ -26,3 +26,8 @@
 # Filter to use for finding the user. This should be in printf format with
 # exactly one `%s`. The string inserted will already by escaped for LDAP.
 # user_filter = "(uid=%s)"
+
+[http]
+enabled = true
+
+token = "mhrbesHYlKdicnJuuvQyJe1k7HhrFDLw"

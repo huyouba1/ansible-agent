@@ -4,31 +4,26 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"flag"
+	"github.com/huyouba1/ansible-agent/conf"
 	"io/ioutil"
 	"log"
 	"net"
 	"os"
 
 	"github.com/BurntSushi/toml"
-	"github.com/jsternberg/ansible-agent/ansible"
+	"github.com/huyouba1/ansible-agent/ansible"
 )
 
 var (
-	flConfig = flag.String("c", "", "Server configuration file")
+	flConfig = flag.String("c", "conf/defaults.toml", "Server configuration file")
 )
 
 func realMain() int {
 	flag.Parse()
 
-	config := DefaultConfig()
+	config := conf.DefaultConfig()
 	if *flConfig != "" {
-		in, err := ioutil.ReadFile(*flConfig)
-		if err != nil {
-			log.Println(err)
-			return 1
-		}
-
-		if err := toml.Unmarshal(in, config); err != nil {
+		if _, err := toml.DecodeFile(*flConfig, config); err != nil {
 			log.Println(err)
 			return 1
 		}
@@ -64,6 +59,10 @@ func realMain() int {
 		l = tls.NewListener(l, &tlsConfig)
 	}
 
+	if config.HttpAuth.Enabled {
+		ansible.AuthToken = config.HttpAuth.Token
+	}
+
 	server := ansible.NewServer()
 	if config.Ldap.Enabled {
 		if err := server.ConfigureLDAP(&config.Ldap); err != nil {
@@ -71,7 +70,6 @@ func realMain() int {
 			return 1
 		}
 	}
-
 	if err := server.Serve(l); err != nil {
 		log.Println(err)
 		return 1
